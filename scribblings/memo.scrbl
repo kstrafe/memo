@@ -14,7 +14,7 @@
 
 @defmodule[memo]
 
-This package provides two macros for defining memoized functions. A memoized function stores its results in a @racket[hasheq] table. Multiple arguments invoke nested @racket[hasheq] tables.
+This package provides macros for defining memoized functions. A memoized function stores its results in a @racket[hasheq] table. Multiple arguments invoke nested @racket[hasheq] tables.
 
 It also provides manners to finalize or destroy memoized values.
 
@@ -52,3 +52,32 @@ For multiple arguments the @racket[hash] becomes nested with respect to the para
 (f 1 2 3)
 (f)
 ]
+
+@defform*[((memoize-zero body ...+))]{
+  Creates a memoized @racket[lambda] that takes zero arguments. It runs the body once and only once when called for the first time. To access the content of the cache and first-time flag, give the function one argument.
+}
+
+@defform*[((define/memoize-zero name body ...+))]{
+  Same as @racket[memoize-zero] but defines the name.
+}
+
+@examples[#:eval evaluator
+  (define/memoize-zero example
+    (writeln "This runs once and only once")
+    'value)
+  (example)
+  (example)
+]
+
+Access to the zero version is granted by providing a dummy argument. Here we use @racket['get-cache] for clarity.
+
+@examples[#:eval evaluator
+  (define/memoize-zero example
+    (writeln "This runs once and only once")
+    'value)
+  (example 'get-cache)
+  (example)
+  (example 'get-cache)
+]
+
+Two values are returned; the cache itself (inside a @racket[box]), as well as the @racket[first-time?] flag, also in a @racket[box]. This flag indicates whether or not the cache should computed.
