@@ -92,6 +92,7 @@ Sometimes we wish to write partially memoized functions, for instance, when we c
                             (live-body ...+)))]{
   Creates a memoized function that memoizes @racket[memoized-body] using @racket[memoized-param], but will apply the remaining
   arguments to the @racket[live-body]. Similarly to other memoizations, one can use empty arguments to get the cached table.
+  If @racket[live-param] is empty, calling the memoized function with just the @racket[memoized-param] will run the @racket[live-body]. Otherwise, it will return a function taking @racket[live-param].
 }
 
 @defform*[((define/memoize-partial name
@@ -114,4 +115,14 @@ Sometimes we wish to write partially memoized functions, for instance, when we c
   (partial 0 0 3)
   (partial)
   (partial 0 0 0)
+]
+
+@examples[#:eval evaluator
+  (define/memoize-partial f (x y) ()
+    ((writeln "Runs once for each unique x and y")
+     (define N (+ x y)))
+    ((* N 10)))
+  (f 1 2)
+  (f)
+  (f 1 2)
 ]
