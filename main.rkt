@@ -4,7 +4,7 @@
          define/memoize-zero    memoize-zero
          define/memoize-partial memoize-partial)
 
-(require syntax/parse/define
+(require racket/function syntax/parse/define
          (for-syntax racket/base racket/list)
          finalizer nested-hash)
 
@@ -67,7 +67,8 @@
                    (lambda (further ...)
                      every ...))])
          (case-lambda
-           [() (memo)]
+           [()                      (memo)]
+           [(param ...)             (curry memo param ...)]
            [(param ... further ...) ((memo param ...) further ...)])
        )))
 
@@ -113,4 +114,5 @@
     (check-equal?     (unbox first-time?)  #f))
   (test-case "memoize-partial"
     (check-equal? (partial 1 2 3 4) 10)
-    (check-equal? (partial* 1 2 3) 2)))
+    (check-equal? (partial* 1 2 3) 2)
+    (check-equal? ((partial 1 2) 3 4) 10)))
