@@ -49,7 +49,7 @@
 
 (define-syntax-parser define/memoize-partial
   ([_ name:id
-      (param:id ...+)
+      (param:id ...)
       (further:id ...)
       (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
       (body:expr ...+)
@@ -69,6 +69,19 @@
          (case-lambda
            [()                      (memo)]
            [(param ...)             ((memo param ...))])
+       ))
+  ([_ ()
+      (further:id ...)
+      (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
+      (body:expr ...)
+      (every:expr ...+)]
+   #'(let ([memo (memoize-zero
+                   body ...
+                   (lambda (further ...)
+                     every ...))])
+         (case-lambda
+           [()                      (memo '~)]
+           [(further ...)           ((memo) further ...)])
        ))
   ([_ (param:id ...+)
       (further:id ...)

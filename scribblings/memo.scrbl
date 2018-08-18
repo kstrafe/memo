@@ -86,17 +86,18 @@ Two values are returned; the cache itself (inside a @racket[box]), as well as th
 Sometimes we wish to write partially memoized functions, for instance, when we compute a side-effect and we want to cache some important result before doing the side-effect. A good use-case is OpenGL, where we may need to generate a texture or load a @racket[glProgram].
 
 
-@defform*[((memoize-partial (memoized-param ...+)
+@defform*[((memoize-partial (memoized-param ...)
                             (live-param ...)
                             (memoized-body ...)
                             (live-body ...+)))]{
   Creates a memoized function that memoizes @racket[memoized-body] using @racket[memoized-param], but will apply the remaining
   arguments to the @racket[live-body]. Similarly to other memoizations, one can use empty arguments to get the cached table.
   If @racket[live-param] is empty, calling the memoized function with just the @racket[memoized-param] will run the @racket[live-body]. Otherwise, it will return a function taking @racket[live-param].
+  If @racket[memoized-param] is empty, then the function will run the memoized body once during the first invocation.
 }
 
 @defform*[((define/memoize-partial name
-                                   (memoized-param ...+)
+                                   (memoized-param ...)
                                    (live-param ...)
                                    (memoized-body ...)
                                    (live-body ...+)))]{
