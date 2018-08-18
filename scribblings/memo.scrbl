@@ -55,6 +55,7 @@ For multiple arguments the @racket[hash] becomes nested with respect to the para
 
 @defform*[((memoize-zero body ...+))]{
   Creates a memoized @racket[lambda] that takes zero arguments. It runs the body once and only once when called for the first time. To access the content of the cache and first-time flag, give the function one argument.
+  Memoize-zero has no finalizer.
 }
 
 @defform*[((define/memoize-zero name body ...+))]{
@@ -81,3 +82,36 @@ Access to the zero version is granted by providing a dummy argument. Here we use
 ]
 
 Two values are returned; the cache itself (inside a @racket[box]), as well as the @racket[first-time?] flag, also in a @racket[box]. This flag indicates whether or not the cache should computed.
+
+Sometimes we wish to write partially memoized functions, for instance, when we compute a side-effect and we want to cache some important result before doing the side-effect. A good use-case is OpenGL, where we may need to generate a texture or load a @racket[glProgram].
+
+
+@defform*[((memoize-partial (memoized-param ...+)
+                            (live-param ...)
+                            (memoized-body ...)
+                            (live-body ...+)))]{
+  Creates a memoized function that memoizes @racket[memoized-body] using @racket[memoized-param], but will apply the remaining
+  arguments to the @racket[live-body]. Similarly to other memoizations, one can use empty arguments to get the cached table.
+}
+
+@defform*[((define/memoize-partial name
+                                   (memoized-param ...+)
+                                   (live-param ...)
+                                   (memoized-body ...)
+                                   (live-body ...+)))]{
+  Same as @racket[memoize-partial] but defines the name.
+}
+
+@examples[#:eval evaluator
+  (define/memoize-partial partial (x y) (a)
+    ((writeln "Runs once for each unique x and y")
+     (define N (+ x y)))
+    ((* N a)))
+  (partial 1 2 3)
+  (partial)
+  (partial 1 2 4)
+
+  (partial 0 0 3)
+  (partial)
+  (partial 0 0 0)
+]

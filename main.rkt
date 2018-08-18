@@ -1,7 +1,8 @@
 #lang racket/base
 
-(provide define/memoize      memoize
-         define/memoize-zero memoize-zero)
+(provide define/memoize         memoize
+         define/memoize-zero    memoize-zero
+         define/memoize-partial memoize-partial)
 
 (require syntax/parse/define
          (for-syntax racket/base racket/list)
@@ -24,7 +25,7 @@
            (let ([result (nested-hash-ref (unbox cache) param ... #:default #f)])
              (if result
                result
-               (let ([value (begin body ...)])
+               (let ([value ((lambda () body ...))])
                  (set-box! cache (nested-hash-set (unbox cache) param ... value))
                  (register-finalizer value fin)
                  value)))]))))
@@ -38,13 +39,37 @@
    #'(let ([cache (box (void))] [first-time? (box #t)])
        (case-lambda
          [() (if (unbox first-time?)
-               (let ([result (begin body ...)])
+               (let ([result ((lambda () body ...))])
                  (set-box! cache result)
                  (set-box! first-time? #f)
                  result)
                (unbox cache))]
          [(dummy)
            (values cache first-time?)]))))
+
+(define-syntax-parser define/memoize-partial
+  ([_ name:id
+      (param:id ...+)
+      (further:id ...)
+      (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
+      (body:expr ...+)
+      (every:expr ...+)]
+   #'(define name (memoize-partial (param ...) (further ...) (body ...) (every ...)))))
+
+(define-syntax-parser memoize-partial
+  ([_ (param:id ...+)
+      (further:id ...)
+      (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
+      (body:expr ...)
+      (every:expr ...+)]
+   #'(let ([memo (memoize (param ...) #:finalize fin
+                   body ...
+                   (lambda (further ...)
+                     every ...))])
+         (case-lambda
+           [() (memo)]
+           [(param ... further ...) ((memo param ...) further ...)])
+       )))
 
 
 (module+ test
@@ -56,6 +81,14 @@
   (define/memoize (fib/memo/final n) #:finalize (lambda x (set! flag #t))
                                      (if (< n 2) 1 (+ (fib/memo/final (sub1 n)) (fib/memo/final (- n 2)))))
   (define/memoize-zero example 1)
+  (define/memoize-partial partial (a b) (x y)
+    ((define N (+ a b)))
+    ((+ x y N)))
+
+  (define partial*
+    (memoize-partial (x y) (w)
+      ((define N (- x y)))
+      ((+ w N))))
 
   (test-case "speed"
     (check-false     (until-timeout (thunk (fib      1000)) 1 (const #f)))
@@ -77,5 +110,7 @@
     (check-equal? (unbox first-time?)  #t)
     (example)
     (check-not-equal? (unbox cache)        (void))
-    (check-equal?     (unbox first-time?)  #f)
-  ))
+    (check-equal?     (unbox first-time?)  #f))
+  (test-case "memoize-partial"
+    (check-equal? (partial 1 2 3 4) 10)
+    (check-equal? (partial* 1 2 3) 2)))
