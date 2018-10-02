@@ -54,7 +54,15 @@
       (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
       (body:expr ...+)
       (every:expr ...+)]
-   #'(define name (memoize-partial (param ...) (further ...) (body ...) (every ...)))))
+   #'(define name (memoize-partial (param ...) (further ...) (body ...) (every ...))))
+  ([_ #:inverted
+      name:id
+      (param:id ...)
+      (further:id ...)
+      (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
+      (body:expr ...+)
+      (every:expr ...+)]
+   #'(define name (memoize-partial #:inverted (param ...) (further ...) (body ...) (every ...)))))
 
 (define-syntax-parser memoize-partial
   ([_ (param:id ...+)
@@ -96,6 +104,21 @@
            [()                      (memo)]
            [(param ...)             (curry memo param ...)]
            [(param ... further ...) ((memo param ...) further ...)])
+       ))
+  ([_ #:inverted
+      (param:id ...+)
+      (further:id ...)
+      (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
+      (body:expr ...)
+      (every:expr ...+)]
+   #'(let ([memo (memoize (param ...) #:finalize fin
+                   body ...
+                   (lambda (further ...)
+                     every ...))])
+         (case-lambda
+           [()                      (memo)]
+           [(param ...)             (curry memo param ...)]
+           [(further ... param ...) ((memo param ...) further ...)])
        )))
 
 
