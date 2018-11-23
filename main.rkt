@@ -26,7 +26,7 @@
              (if result
                result
                (let ([value ((lambda () body ...))])
-                 (set-box! cache (nested-hash-set (unbox cache) param ... value))
+                 (set-box! cache (nested-hash-set (unbox cache) #:hash hasheq param ... value))
                  (register-finalizer value fin)
                  value)))]))))
 
@@ -140,6 +140,11 @@
       ((define N (- x y)))
       ((+ w N))))
 
+  (define/memoize (multiple a b c) (+ a b c))
+
+  (test-case "ensure nested tables are of the same hash type"
+    (multiple 1 2 3)
+    (check-equal? (multiple) (box (hasheq 1 (hasheq 2 (hasheq 3 6))))))
   (test-case "speed"
     (check-false     (until-timeout (thunk (fib      1000)) 1 (const #f)))
     (check-not-false (until-timeout (thunk (fib/memo 1000)) 1 (const #f))))
