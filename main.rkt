@@ -154,10 +154,10 @@
     (check-equal? (hash-count (unbox (fib/memo))) 0))
   (test-case "memoize-zero"
     (check-equal? (with-output-to-string (lambda ()
-                                         (define x (memoize-zero (display "test")))
-                                         (x)
-                                         (x)
-                                         (x)))
+                                           (define x (memoize-zero (display "test")))
+                                           (x)
+                                           (x)
+                                           (x)))
                   "test"))
   (test-case "memoize-zero-cache"
     (define-values (cache first-time?) (example 'get-cache))
