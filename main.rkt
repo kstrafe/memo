@@ -10,15 +10,17 @@
 
 (define-syntax-parser define/memoize
   ([_ (name:id formals:id ...+)
+      (~optional (~seq #:hash hsh:expr) #:defaults [(hsh #'hasheq)])
       (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
       body:expr ...+]
-   #'(define name (memoize (formals ...) #:finalize fin body ...))))
+   #'(define name (memoize (formals ...) #:hash hsh #:finalize fin body ...))))
 
 (define-syntax-parser memoize
   ([_ (param:id ...)
+      (~optional (~seq #:hash hsh:expr) #:defaults [(hsh #'hasheq)])
       (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
       body:expr ...+]
-   #'(let ([cache (box (hasheq))])
+   #'(let ([cache (box (hsh))])
        (case-lambda
          [() cache]
          [(param ...)
@@ -26,7 +28,7 @@
              (if result
                result
                (let ([value ((lambda () body ...))])
-                 (set-box! cache (nested-hash-set (unbox cache) #:hash hasheq param ... value))
+                 (set-box! cache (nested-hash-set (unbox cache) #:hash hsh param ... value))
                  (register-finalizer value fin)
                  value)))]))))
 
@@ -51,26 +53,29 @@
   ([_ name:id
       (param:id ...)
       (further:id ...)
+      (~optional (~seq #:hash hsh:expr) #:defaults [(hsh #'hasheq)])
       (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
       (body:expr ...+)
       (every:expr ...+)]
-   #'(define name (memoize-partial (param ...) (further ...) (body ...) (every ...))))
+   #'(define name (memoize-partial (param ...) (further ...) #:hash hsh #:finalize fin (body ...) (every ...))))
   ([_ #:inverted
       name:id
       (param:id ...)
       (further:id ...)
+      (~optional (~seq #:hash hsh:expr) #:defaults [(hsh #'hasheq)])
       (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
       (body:expr ...+)
       (every:expr ...+)]
-   #'(define name (memoize-partial #:inverted (param ...) (further ...) (body ...) (every ...)))))
+   #'(define name (memoize-partial #:inverted (param ...) (further ...) #:hash hsh #:finalize fin (body ...) (every ...)))))
 
 (define-syntax-parser memoize-partial
   ([_ (param:id ...+)
       ()
+      (~optional (~seq #:hash hsh:expr) #:defaults [(hsh #'hasheq)])
       (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
       (body:expr ...)
       (every:expr ...+)]
-   #'(let ([memo (memoize (param ...) #:finalize fin
+   #'(let ([memo (memoize (param ...) #:hash hsh #:finalize fin
                    body ...
                    (lambda ()
                      every ...))])
@@ -80,6 +85,7 @@
        ))
   ([_ ()
       (further:id ...)
+      (~optional (~seq #:hash hsh:expr) #:defaults [(hsh #'hasheq)])
       (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
       (body:expr ...)
       (every:expr ...+)]
@@ -93,10 +99,11 @@
        ))
   ([_ (param:id ...+)
       (further:id ...)
+      (~optional (~seq #:hash hsh:expr) #:defaults [(hsh #'hasheq)])
       (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
       (body:expr ...)
       (every:expr ...+)]
-   #'(let ([memo (memoize (param ...) #:finalize fin
+   #'(let ([memo (memoize (param ...) #:hash hsh #:finalize fin
                    body ...
                    (lambda (further ...)
                      every ...))])
@@ -108,10 +115,11 @@
   ([_ #:inverted
       (param:id ...+)
       (further:id ...)
+      (~optional (~seq #:hash hsh:expr) #:defaults [(hsh #'hasheq)])
       (~optional (~seq #:finalize fin:expr) #:defaults [(fin #'(lambda x x))])
       (body:expr ...)
       (every:expr ...+)]
-   #'(let ([memo (memoize (param ...) #:finalize fin
+   #'(let ([memo (memoize (param ...) #:hash hsh #:finalize fin
                    body ...
                    (lambda (further ...)
                      every ...))])
@@ -141,10 +149,34 @@
       ((+ w N))))
 
   (define/memoize (multiple a b c) (+ a b c))
-
   (test-case "ensure nested tables are of the same hash type"
     (multiple 1 2 3)
     (check-equal? (multiple) (box (hasheq 1 (hasheq 2 (hasheq 3 6))))))
+  (test-case "check different hash types"
+    (define/memoize (hash-type a b c d e f g) #:hash hash #xABCD)
+    (hash-type 1 2 'c 4 5 6 'g)
+    (check-equal?
+      (hash-type)
+      (box (hash 1 (hash 2 (hash 'c (hash 4 (hash 5 (hash 6 (hash 'g #xABCD))))))))))
+
+  (define/memoize-partial partial-memoize (a b c d) (e f g h) #:hash hash
+    ((define N (+ a c)))
+    (N))
+  (test-case "hash-propagation for partial"
+    (partial-memoize 1 'b 3 "str" -1 -2 -3 -4)
+    (check-eq?
+      (partial-memoize 1 'b 3 "str")
+      (partial-memoize 1 'b 3 (string-append "st" "r"))))
+
+  (define/memoize-partial partial-memoize-hasheq (a b c d) (e f g h)
+    ((define N (+ a c)))
+    (N))
+  (test-case "hash-propagation for partial"
+    (partial-memoize-hasheq 1 'b 3 "str" -1 -2 -3 -4)
+    (check-not-eq?
+      (partial-memoize-hasheq 1 'b 3 "str")
+      (partial-memoize-hasheq 1 'b 3 (string-append "st" "r"))))
+
   (test-case "speed"
     (check-false     (until-timeout (thunk (fib      1000)) 1 (const #f)))
     (check-not-false (until-timeout (thunk (fib/memo 1000)) 1 (const #f))))

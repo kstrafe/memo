@@ -19,13 +19,15 @@ This package provides macros for defining memoized functions. A memoized functio
 It also provides manners to finalize or destroy memoized values.
 
 @defform*[((memoize (param ...+) body ...+)
+           (memoize (param ...+) #:hash hsh body ...+)
            (memoize (param ...+) #:finalize finalizer body ...+))]{
   Creates a memoized @racket[lambda]. It is the @racket[lambda] that holds the memoized values internally. If the @racket[lambda] goes out of scope, then so do the associated memoized values.
+  @racket[#:hash] specifies a hash table to use for the memoized data. The default is @racket[hasheq].
   A finalizer can be specified using the @racket[#:finalize] keyword after the parameter list. The finalizer runs whenever a value has been removed from the cache, but no guarantee is made as to when this will happen as finalization depends on the racket garbage collector.
 }
 
 @defform*[((define/memoize (name param ...+) body ...+)
-           (define/memoize (name param ...+) #:finalize finalizer body ...+))]{
+           (define/memoize (name param ...+) #:hash hsh #:finalize finalizer body ...+))]{
   Same as @racket[memoize] but defines a @racket[name] in the surrounding scope.
 }
 
@@ -48,9 +50,9 @@ One can also simply remove the desired entries inside @racket[(fib)], and then u
 For multiple arguments the @racket[hash] becomes nested with respect to the parameters:
 
 @examples[#:eval evaluator
-(define/memoize (f a b c) (+ a b c))
-(f 1 2 3)
-(f)
+  (define/memoize (f a b c) (+ a b c))
+  (f 1 2 3)
+  (f)
 ]
 
 @defform*[((memoize-zero body ...+))]{
@@ -88,6 +90,8 @@ Sometimes we wish to write partially memoized functions, for instance, when we c
 
 @defform*[((memoize-partial (memoized-param ...)
                             (live-param ...)
+                            #:hash hsh
+                            #:finalize finalizer
                             (memoized-body ...)
                             (live-body ...+)))]{
   Creates a memoized function that memoizes @racket[memoized-body] using @racket[memoized-param], but will apply the remaining
@@ -99,6 +103,8 @@ Sometimes we wish to write partially memoized functions, for instance, when we c
 @defform*[((define/memoize-partial name
                                    (memoized-param ...)
                                    (live-param ...)
+                                   #:hash hsh
+                                   #:finalize finalizer
                                    (memoized-body ...)
                                    (live-body ...+)))]{
   Same as @racket[memoize-partial] but defines the name.
@@ -126,4 +132,15 @@ Sometimes we wish to write partially memoized functions, for instance, when we c
   (f 1 2)
   (f)
   (f 1 2)
+]
+
+If @racket[hash] is desired, it can be specified:
+@examples[#:eval evaluator
+  (define/memoize (memoize-with-hash a str) #:hash hash
+    str)
+  (memoize-with-hash 1 "A string")
+  (memoize-with-hash 1 (string-append "A " "string"))
+
+  ; The table only contains one entry
+  (memoize-with-hash)
 ]
